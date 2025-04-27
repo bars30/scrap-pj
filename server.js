@@ -3,20 +3,46 @@ const { getAutocompleteSuggestions, scrapeSERP } = require('./scraper');
 const app = express();
 app.use(express.json());
 const axios = require('axios'); // Դա պետք է լինի ամենավերին մասում
-
+const { chromium } = require('playwright'); // Ավելացրու սա
 const googleTrends = require('google-trends-api');
 
 async function getSearchVolumeFromGoogleTrends(keyword) {
-  try {
-    const data = await googleTrends.interestOverTime({ keyword: keyword, geo: 'US' });
-    const parsedData = JSON.parse(data);
-    const searchVolume = parsedData.default.timelineData;
-    return searchVolume;
-  } catch (error) {
-    console.error('Error fetching Google Trends data:', error);
-    return null;
-  }
+ try {
+   const searchVolume = await scrapeGoogleTrends2025(keyword);
+   return searchVolume;
+ } catch (error) {
+   console.error('Error scraping Google Trends 2025 data:', error);
+   return null;
+ }
 }
+async function scrapeGoogleTrends2025(keyword) {
+ const browser = await chromium.launch({ headless: true });
+ const page = await browser.newPage();
+
+ const trendsUrl = `https://trends.google.com/trends/explore?date=2025-01-01%202025-12-31&geo=US&q=${encodeURIComponent(keyword)}`;
+ await page.goto(trendsUrl, { waitUntil: 'domcontentloaded' });
+
+ // Փոքր սպասում, որ scripts լցվեն
+ await page.waitForTimeout(3000);
+
+ // Փորձում ենք script-ներից քաշել timelineData
+ const data = await page.evaluate(() => {
+   const scripts = Array.from(document.querySelectorAll('script'));
+   const chartDataScript = scripts.find(s => s.textContent.includes('timelineData'));
+   if (!chartDataScript) return null;
+
+   const match = chartDataScript.textContent.match(/"timelineData":(\[.*?\])\s*,\s*"averages"/s);
+   if (!match) return null;
+
+   const timelineData = JSON.parse(match[1]);
+   return timelineData;
+ });
+
+ await browser.close();
+ return data;
+}
+
+
 
 async function calculateKeywordDifficulty(keyword) {
  // For now, just returning a dummy difficulty value
