@@ -18,8 +18,8 @@ async function scrapeSERP(keyword) {
  await page.goto(`https://www.google.com/search?q=${encodeURIComponent(keyword)}`, { waitUntil: 'domcontentloaded' });
 
  const results = await page.evaluate(() => {
-   return Array.from(document.querySelectorAll('div#bres div.BVG0Nb')).map(el => el.innerText);
- });
+  return Array.from(document.querySelectorAll('.tF2Cxc')).map(el => el.innerText); // Փոփոխեք ընտրիչը, եթե անհրաժեշտ է
+});
 
  await browser.close();
  return results;

@@ -8,40 +8,69 @@ const googleTrends = require('google-trends-api');
 
 async function getSearchVolumeFromGoogleTrends(keyword) {
  try {
-   const searchVolume = await scrapeGoogleTrends2025(keyword);
-   return searchVolume ? searchVolume : "No data available";  // եթե տվյալներ չկան
+   const results = await googleTrends.interestOverTime({
+     keyword: keyword,
+     startTime: new Date('2023-01-01'),
+     endTime: new Date('2023-12-31'),
+   });
+
+   const data = JSON.parse(results);
+   const timelineData = data.default.timelineData;
+
+   if (!timelineData || timelineData.length === 0) {
+     console.log('No data found for keyword:', keyword);
+     return null;
+   }
+
+   const avgSearchVolume = timelineData.reduce((sum, point) => sum + point.value[0], 0) / timelineData.length;
+   return Math.round(avgSearchVolume);
+
  } catch (error) {
-   console.error('Error scraping Google Trends 2025 data:', error);
+   console.error('Error fetching data from Google Trends API:', error);
    return null;
  }
 }
 
 async function scrapeGoogleTrends2025(keyword) {
- const browser = await chromium.launch({ headless: true });
- const page = await browser.newPage();
+  console.log(`Scraping Google Trends for keyword: ${keyword}`); // Լոգին տալիս ենք որ իմանանք, թե երբ է սկսել քաշելը
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
 
- const trendsUrl = `https://trends.google.com/trends/explore?date=2025-01-01%202025-12-31&geo=US&q=${encodeURIComponent(keyword)}`;
- await page.goto(trendsUrl, { waitUntil: 'domcontentloaded' });
+  const trendsUrl = `https://trends.google.com/trends/explore?date=2023-01-01%202023-12-31...`; // Ուղղել ամսաթիվը
 
- // Փոքր սպասում, որ scripts լցվեն
- await page.waitForTimeout(3000);
+  console.log(`Navigating to: ${trendsUrl}`);  // Լոգեր՝ URL-ն տպելու համար
+  await page.goto(trendsUrl, { waitUntil: 'networkidle0' });
 
- // Փորձում ենք script-ներից քաշել timelineData
- const data = await page.evaluate(() => {
-   const scripts = Array.from(document.querySelectorAll('script'));
-   const chartDataScript = scripts.find(s => s.textContent.includes('timelineData'));
-   if (!chartDataScript) return null;
+  // await page.waitForTimeout(3000);
 
-   const match = chartDataScript.textContent.match(/"timelineData":(\[.*?\])\s*,\s*"averages"/s);
-   if (!match) return null;
+  // Քաշում ենք տվյալները
+  const data = await page.evaluate(() => {
+    console.log('Evaluating page content'); // Ավելացնել լոգեր, երբ փորձում ես քաշել տվյալները
+    const scripts = Array.from(document.querySelectorAll('script'));
+    console.log(`Found ${scripts.length} script tags.`); // Լոգ՝ քանի script tag կա
+    const chartDataScript = scripts.find(s => s.textContent.includes('timelineData'));
+    
+    if (!chartDataScript) {
+      console.log('timelineData not found'); // Լոգ՝ երբ timelineData չի գտնվի
+      return null;
+    }
 
-   const timelineData = JSON.parse(match[1]);
-   return timelineData;
- });
+    const match = chartDataScript.textContent.match(/"timelineData":(\[.*?\])\s*,\s*"averages"/s);
+    if (!match) {
+      console.log('No matching data found in the script'); // Լոգ՝ եթե տվյալները չեն գտնվել
+      return null;
+    }
 
- await browser.close();
- return data;
+    const timelineData = JSON.parse(match[1]);
+    console.log(`Found timeline data: ${JSON.stringify(timelineData)}`); // Լոգ՝ ցույց տալով գտնված տվյալները
+    return timelineData;
+  });
+
+  await browser.close();
+  console.log('Browser closed');
+  return data;
 }
+
 
 
 
@@ -54,11 +83,15 @@ async function calculateKeywordDifficulty(keyword) {
 app.post('/api/v1/serp/task_post', async (req, res) => {
  const { keyword, language_code = 'en', location_code = 'us' } = req.body;
 
+ console.log(`Received request to fetch data for keyword: ${keyword}, language: ${language_code}, location: ${location_code}`);
+
  try {
    const autocomplete = await getAutocompleteSuggestions(keyword);
    const serpResults = await scrapeSERP(keyword);
 
-   // Ստանում ենք բոլոր կեյվորթների համար searchVolume և keywordDifficulty
+   console.log('Autocomplete results:', autocomplete);  // Լոգ՝ արդյունքների մասին
+   console.log('SERP results:', serpResults);  // Լոգ՝ SERP արդյունքների մասին
+
    const keywordMetrics = await getAllKeywordMetrics(autocomplete);
 
    res.json({
@@ -66,14 +99,18 @@ app.post('/api/v1/serp/task_post', async (req, res) => {
      result: { autocomplete, serpResults, keywordMetrics }
    });
  } catch (err) {
+   console.error('Error:', err.message);  // Լոգ՝ երբ սխալ է տեղի ունենում
    res.status(500).json({ status: 'error', error: err.message });
  }
 });
 
+
 async function getAllKeywordMetrics(keywords) {
+ console.log('Fetching keyword metrics for keywords:', keywords);  // Լոգ՝ որոնք կեյվորթները պետք է մշակվեն
  const metrics = [];
 
  for (let keyword of keywords) {
+   console.log(`Fetching metrics for keyword: ${keyword}`);  // Լոգ՝ երբ յուրաքանչյուր կեյվորթը մշակվում է
    const searchVolume = await getSearchVolumeFromGoogleTrends(keyword);
    const keywordDifficulty = await calculateKeywordDifficulty(keyword);
 
@@ -84,6 +121,7 @@ async function getAllKeywordMetrics(keywords) {
    });
  }
 
+ console.log('Keyword metrics fetched:', metrics);  // Լոգ՝ երբ ամեն ինչ ավարտվել է
  return metrics;
 }
 
