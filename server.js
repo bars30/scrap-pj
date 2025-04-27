@@ -75,13 +75,46 @@ async function scrapeGoogleTrends2025(keyword) {
 
 
 async function calculateKeywordDifficulty(keyword) {
- // For now, just returning a dummy difficulty value
- return Math.floor(Math.random() * 100); // This is just a placeholder
+ try {
+   // Քաշում ենք SERP արդյունքները
+   const serpResults = await scrapeSERP(keyword);
+   
+   // Դեֆայնենք հզոր կայքերի օրինակներ
+   const strongSites = ['wikipedia.org', 'amazon.com', 'youtube.com', 'facebook.com', 'twitter.com', 'linkedin.com'];
+
+   let strongCount = 0;
+
+   for (let result of serpResults) {
+     for (let site of strongSites) {
+       if (result.toLowerCase().includes(site)) {
+         strongCount++;
+         break;
+       }
+     }
+   }
+
+   const totalResults = serpResults.length || 1; // զրոյական բաժանումից խուսափելու համար
+   const strongSiteRatio = strongCount / totalResults;
+
+   // Հաշվենք բազային բարդության միավոր՝
+   let difficulty = Math.round(strongSiteRatio * 100);
+
+   // Ավելացնենք քիչ պատահականություն, որ բազուկ չլինի
+   difficulty += Math.floor(Math.random() * 10);
+
+   if (difficulty > 100) difficulty = 100; // Difficulty երբեք չպետք է անցնի 100
+
+   return difficulty;
+
+ } catch (error) {
+   console.error('Error calculating keyword difficulty:', error);
+   return Math.floor(Math.random() * 100); // fallback
+ }
 }
 
 // POST task
 app.post('/api/v1/serp/task_post', async (req, res) => {
- const { keyword, language_code = 'en', location_code = 'us' } = req.body;
+ const { keyword, language_code, location_code } = req.body;
 
  console.log(`Received request to fetch data for keyword: ${keyword}, language: ${language_code}, location: ${location_code}`);
 
