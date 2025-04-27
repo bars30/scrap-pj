@@ -9,12 +9,13 @@ const googleTrends = require('google-trends-api');
 async function getSearchVolumeFromGoogleTrends(keyword) {
  try {
    const searchVolume = await scrapeGoogleTrends2025(keyword);
-   return searchVolume;
+   return searchVolume ? searchVolume : "No data available";  // եթե տվյալներ չկան
  } catch (error) {
    console.error('Error scraping Google Trends 2025 data:', error);
    return null;
  }
 }
+
 async function scrapeGoogleTrends2025(keyword) {
  const browser = await chromium.launch({ headless: true });
  const page = await browser.newPage();
@@ -56,7 +57,9 @@ app.post('/api/v1/serp/task_post', async (req, res) => {
  try {
    const autocomplete = await getAutocompleteSuggestions(keyword);
    const serpResults = await scrapeSERP(keyword);
-   const keywordMetrics = await getKeywordMetrics(keyword);
+
+   // Ստանում ենք բոլոր կեյվորթների համար searchVolume և keywordDifficulty
+   const keywordMetrics = await getAllKeywordMetrics(autocomplete);
 
    res.json({
      status: 'finished',
@@ -67,13 +70,33 @@ app.post('/api/v1/serp/task_post', async (req, res) => {
  }
 });
 
+async function getAllKeywordMetrics(keywords) {
+ const metrics = [];
+
+ for (let keyword of keywords) {
+   const searchVolume = await getSearchVolumeFromGoogleTrends(keyword);
+   const keywordDifficulty = await calculateKeywordDifficulty(keyword);
+
+   metrics.push({
+     keyword,
+     searchVolume: searchVolume ? searchVolume : "No data available",
+     keywordDifficulty
+   });
+ }
+
+ return metrics;
+}
+
+
 async function getKeywordMetrics(keyword) {
- // Google Trends, այլ տվյալների աղբյուրներից ձեռք բերեք տվյալներ
  const searchVolume = await getSearchVolumeFromGoogleTrends(keyword);
  const keywordDifficulty = await calculateKeywordDifficulty(keyword);
 
- return { searchVolume, keywordDifficulty };
+ // Տվյալները վերադարձնում ենք որպես արդյունք
+ return {
+   searchVolume: searchVolume ? searchVolume : "Data not found",
+   keywordDifficulty: keywordDifficulty
+ };
 }
-
 
 app.listen(3000, () => console.log('API running on http://localhost:3000'));
