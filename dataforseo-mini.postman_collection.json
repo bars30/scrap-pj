@@ -1,0 +1,64 @@
+{
+ "info": {
+   "name": "DataForSEO Mini Clone API",
+   "_postman_id": "12345678-abcd-efgh-ijkl-1234567890ab",
+   "description": "Testing endpoints for custom DataForSEO-like API",
+   "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "item": [
+   {
+     "name": "Submit SERP Task",
+     "request": {
+       "method": "POST",
+       "header": [
+         {
+           "key": "Content-Type",
+           "value": "application/json"
+         }
+       ],
+       "body": {
+         "mode": "raw",
+         "raw": "{\n  \"keyword\": \"best seo tools\",\n  \"language_code\": \"en\",\n  \"location_code\": \"us\"\n}"
+       },
+       "url": {
+         "raw": "http://localhost:3000/api/v1/serp/task_post",
+         "protocol": "http",
+         "host": [
+           "localhost"
+         ],
+         "port": "3000",
+         "path": [
+           "api",
+           "v1",
+           "serp",
+           "task_post"
+         ]
+       }
+     },
+     "response": []
+   },
+   {
+     "name": "Get SERP Task Result",
+     "request": {
+       "method": "GET",
+       "header": [],
+       "url": {
+         "raw": "http://localhost:3000/api/v1/serp/task_get/{{task_id}}",
+         "protocol": "http",
+         "host": [
+           "localhost"
+         ],
+         "port": "3000",
+         "path": [
+           "api",
+           "v1",
+           "serp",
+           "task_get",
+           "{{task_id}}"
+         ]
+       }
+     },
+     "response": []
+   }
+ ]
+}
